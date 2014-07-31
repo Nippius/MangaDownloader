@@ -20,6 +20,7 @@ namespace Crawler
         private static int firstChapter;
         private static int lastChapter;
 
+        private static string savePath; // Path where all the chapter will be stored.
         private static HttpClient hc = null;
 
         static void Main(string[] args)
@@ -32,6 +33,13 @@ namespace Crawler
             urlExtension = ConfigurationManager.AppSettings["urlExtension"];
             firstChapter = Convert.ToInt32(ConfigurationManager.AppSettings["startChapter"]);
             lastChapter = Convert.ToInt32(ConfigurationManager.AppSettings["endChapter"]);
+
+            savePath = ConfigurationManager.AppSettings["SavePath"]+urlManga;
+            if (!Directory.Exists(savePath))
+            {
+                Directory.CreateDirectory(savePath);
+            }
+
 
             // Chapter URL's start at 1 so we need to add one to get the correct chapter
             // Ex: Chapter 687 is URL http://www.mangastream.to/naruto-chapter-688.html
@@ -126,7 +134,7 @@ namespace Crawler
             //Simular trabalho...
             return Task.Delay(1).ContinueWith((x) =>
             {
-                 //Console.WriteLine(chapter + " - " + page +" Completed... OK! Delay was: "+delay);
+                 Console.WriteLine(chapter + " - " + page +" Completed... OK! Delay was: "+delay);
             });
 
             /*string destFolder = (chapter - 1).ToString();
