@@ -104,11 +104,13 @@ namespace Crawler
                 // Transfer no more than maxConcurPageDown pages at once.
                 if (pages.Count == maxConcurPageDown)
                 {
-                    // Esperar que hajam menos de 10 tasks ao mesmo tempo
+                    // Once we are at the limit, wait for at least one to finish
                     await Task.WhenAny(pages.ToArray()).ContinueWith((x) =>
                     {
                         // WhenAny() returns the instance of Task that ended so we can remove it from
                         // the queue of pages and add another one. NEEDS MORE TESTING
+                        // in order to garantee that there is no concurrency problems. (does it
+                        // need locks or a synchronizer?)
                         pages.Remove(x);
                     });
                 }
@@ -121,7 +123,6 @@ namespace Crawler
             // Delay entre 1 e 6 segundos
             int delay = ((System.DateTime.Now.Millisecond % 5) + 1) * 1000;
 
-            //Console.WriteLine(delay);
             //Simular trabalho...
             return Task.Delay(1).ContinueWith((x) =>
             {
