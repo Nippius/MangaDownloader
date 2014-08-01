@@ -16,7 +16,7 @@ namespace Crawler
         private static int delayBetweenChapters;
         private static string urlBase;
         private static string urlImageFolder;
-        private static string urlManga;
+        private static string manga;
         private static string urlExtension;
         private static int firstChapter;
         private static int lastChapter;
@@ -30,13 +30,13 @@ namespace Crawler
             delayBetweenChapters = Convert.ToInt32(ConfigurationManager.AppSettings["delayBetweenChapters"]);
             urlBase = ConfigurationManager.AppSettings["urlBase"];
             urlImageFolder = ConfigurationManager.AppSettings["urlImageFolder"];
-            urlManga = ConfigurationManager.AppSettings["urlManga"];
+            manga = ConfigurationManager.AppSettings["manga"];
             urlExtension = ConfigurationManager.AppSettings["urlExtension"];
             firstChapter = Convert.ToInt32(ConfigurationManager.AppSettings["startChapter"]);
             lastChapter = Convert.ToInt32(ConfigurationManager.AppSettings["endChapter"]);
 
             // Create folder if it dosen´t exist
-            savePath = ConfigurationManager.AppSettings["SavePath"]+urlManga;
+            savePath = ConfigurationManager.AppSettings["SavePath"]+manga;
             if (!Directory.Exists(savePath))
             {
                 Directory.CreateDirectory(savePath);
@@ -163,9 +163,7 @@ namespace Crawler
             if (page < 10) page_url.Append("0");
             page_url.Append(page);
 
-            Console.WriteLine(url_base + url_img_folder + chapter + page_url + url_etx);
-
-            HttpResponseMessage hrm = await hc.GetAsync(url_base + urlImageFolder + urlManga + "/" + chapter + page_url + urlExtension);
+            HttpResponseMessage hrm = await hc.GetAsync(url_base + urlImageFolder + "/" + manga + "/" + chapter + page_url + urlExtension);
             if(hrm.StatusCode == HttpStatusCode.OK)
             {
                 HttpContent st = hrm.Content;
