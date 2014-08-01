@@ -35,6 +35,7 @@ namespace Crawler
             firstChapter = Convert.ToInt32(ConfigurationManager.AppSettings["startChapter"]);
             lastChapter = Convert.ToInt32(ConfigurationManager.AppSettings["endChapter"]);
 
+            // Create folder if it dosen´t exist
             savePath = ConfigurationManager.AppSettings["SavePath"]+urlManga;
             if (!Directory.Exists(savePath))
             {
@@ -164,14 +165,15 @@ namespace Crawler
 
             Console.WriteLine(url_base + url_img_folder + chapter + page_url + url_etx);
 
-            HttpResponseMessage hrm = await hc.GetAsync(url_base + url_img_folder + chapter + page_url + url_etx);
+            HttpResponseMessage hrm = await hc.GetAsync(url_base + urlImageFolder + urlManga + "/" + chapter + page_url + urlExtension);
             if(hrm.StatusCode == HttpStatusCode.OK)
             {
                 HttpContent st = hrm.Content;
                 Console.WriteLine(st.ReadAsStringAsync().Result);
 
-                string destFolder = savePath + (chapter - 1).ToString();
-                using(FileStream f = File.OpenWrite(destFolder+page))
+                string destFolder = savePath +"\\"+ (chapter - 1).ToString();
+                // c:\naruto\1.png
+                using(FileStream f = File.OpenWrite(destFolder+page+urlExtension))
                 {
                   byte[] res = await st.ReadAsByteArrayAsync();
 
