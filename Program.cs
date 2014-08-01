@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Net.Http;
 using System.IO;
 using System.Configuration;
+using System.Net;
 
 namespace Crawler
 {
@@ -40,7 +41,6 @@ namespace Crawler
                 Directory.CreateDirectory(savePath);
             }
 
-
             // Chapter URL's start at 1 so we need to add one to get the correct chapter
             // Ex: Chapter 687 is URL http://www.mangastream.to/naruto-chapter-688.html
             firstChapter++;
@@ -48,7 +48,13 @@ namespace Crawler
 
             hc = new HttpClient();
 
+            Download().Wait();  // Bloquear o main até termos acabado de sacar tudo.
+
+            // Carregar em qualquer tecla para terminar.
+            //Console.ReadLine();
+
             /*
+            // Testes
             int chapter = 661;
             int page = 1;
 
@@ -62,12 +68,7 @@ namespace Crawler
 
             f.Write(res, 0, res.Length)
             };
-           ;*/
-            Download().Wait();  // Bloquear o main até ter-mos acabado de sacar tudo.
-
-
-            // Carregar em qualquer tecla para terminar.
-            Console.ReadLine();
+            */
 
             // ISTO É UM BUG DESCOMUNAL! Estamos infinitamente a criar tasks para fazer download e todas elas vão começar a sacar capitulos desde o incio
             // Exemplo:
@@ -77,6 +78,10 @@ namespace Crawler
             //while(!Download().IsCompleted); 
         }
 
+        /// <summary>
+        /// Downloads all the chapters specified in App.config
+        /// </summary>
+        /// <returns>Returns a Task that will complete when all chapters are downloaded.</returns>
         private async static Task Download()
         {
             for (int chapter = firstChapter; chapter <= lastChapter; chapter++)
@@ -84,6 +89,14 @@ namespace Crawler
                 // Parse the HTML in order to get the page total.
                 // Could be usefulll in order to get all the page links.
                 // GetTotalChapterPagesAvailable()
+
+                // Create folder for current chapter
+                string destChapterFolder = savePath +"\\"+ (chapter - 1).ToString();
+                if (!Directory.Exists(destChapterFolder))
+                {
+                    Directory.CreateDirectory(destChapterFolder);
+                }
+
 
                 // Wait for each chapter to finish downloading
                 Console.Write("Processing chapter: "+(chapter-1)+" -- ");
@@ -106,7 +119,7 @@ namespace Crawler
 
             for (int page = 1; page < 30; page++)
             {
-                // Add next page to transfer.
+                // Add next page to download.
                 pages.AddFirst(GetPage(chapter, page));
 
                 // Transfer no more than maxConcurPageDown pages at once.
@@ -125,6 +138,12 @@ namespace Crawler
             }
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="chapter"></param>
+        /// <param name="page"></param>
+        /// <returns></returns>
         private static Task GetPage(int chapter, int page)
         {
 
@@ -132,29 +151,36 @@ namespace Crawler
             int delay = ((System.DateTime.Now.Millisecond % 5) + 1) * 1000;
 
             //Simular trabalho...
-            return Task.Delay(1).ContinueWith((x) =>
+            return Task.Delay(delay).ContinueWith((x) =>
             {
-                 Console.WriteLine(chapter + " - " + page +" Completed... OK! Delay was: "+delay);
+                 //Console.WriteLine(chapter + " - " + page +" Completed... OK! Delay was: "+delay);
             });
 
-            /*string destFolder = (chapter - 1).ToString();
-            
-            if(!Directory.Exists(destFolder))
-            {
-                Directory.CreateDirectory(destFolder);
-            }
-
+            /*
             StringBuilder page_url = new StringBuilder();
             page_url.Append("/");
             if (page < 10) page_url.Append("0");
             page_url.Append(page);
 
-            Console.WriteLine(url_base + url_img_folder + chapter + page_url + url_etx);*/
+            Console.WriteLine(url_base + url_img_folder + chapter + page_url + url_etx);
 
-            //HttpResponseMessage hrm = await hc.GetAsync(url_base + url_img_folder + chapter + page_url + url_etx);
+            HttpResponseMessage hrm = await hc.GetAsync(url_base + url_img_folder + chapter + page_url + url_etx);
+            if(hrm.StatusCode == HttpStatusCode.OK)
+            {
+                HttpContent st = hrm.Content;
+                Console.WriteLine(st.ReadAsStringAsync().Result);
 
+                string destFolder = savePath + (chapter - 1).ToString();
+                using(FileStream f = File.OpenWrite(destFolder+page))
+                {
+                  byte[] res = await st.ReadAsByteArrayAsync();
 
-            //Console.WriteLine("Chapter {0} page {1}: Ok!", chapter, page);
+                f.Write(res, 0, res.Length) // Write the file
+                };
+
+                Console.WriteLine("Chapter {0} page {1}: Ok!", chapter, page);
+            }
+            */
         }
     }
 }
