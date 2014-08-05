@@ -7,12 +7,14 @@ using System.Net.Http;
 using System.IO;
 using System.Configuration;
 using System.Net;
+using System.Threading;
 
 namespace Crawler
 {
     class Program
     {
-        private static int maxConcurPageDown;  // Maximum number of pages being downloaded
+        // Maximum number of pages being downloaded
+        private static int maxConcurPageDown;  
         private static int delayBetweenChapters;
         private static string urlBase;
         private static string urlImageFolder;
@@ -20,9 +22,9 @@ namespace Crawler
         private static string urlExtension;
         private static int firstChapter;
         private static int lastChapter;
-
-        private static string savePath; // Path where all the chapter will be stored.
-        private static HttpClient hc = null;
+        // Path where all the chapter will be stored.
+        private static string savePath; 
+        private static HttpClient hc;
 
         static void Main(string[] args)
         {
@@ -51,6 +53,7 @@ namespace Crawler
 
             Download().Wait();  // Bloquear o main até termos acabado de sacar tudo.
 
+            Console.WriteLine("All downloads finished!");
             // Carregar em qualquer tecla para terminar.
             //Console.ReadLine();
 
@@ -140,11 +143,11 @@ namespace Crawler
         }
 
         /// <summary>
-        /// 
+        /// Downloads asynchronously a single page from a chapter of the manga specified.
         /// </summary>
-        /// <param name="chapter"></param>
-        /// <param name="page"></param>
-        /// <returns></returns>
+        /// <param name="chapter">The chapter number tha the page corresponds to.</param>
+        /// <param name="page">The page number to download.</param>
+        /// <returns>Returns a Task that will complete once the page is completely downloaded.</returns>
         private static Task GetPage(int chapter, int page)
         {
 
@@ -157,30 +160,29 @@ namespace Crawler
                  //Console.WriteLine(chapter + " - " + page +" Completed... OK! Delay was: "+delay);
             });
 
-            /*
-            StringBuilder page_url = new StringBuilder();
-            page_url.Append("/");
-            if (page < 10) page_url.Append("0");
-            page_url.Append(page);
+            
+            //StringBuilder page_url = new StringBuilder();
+            //page_url.Append("/");
+            //if (page < 10) page_url.Append("0");
+            //page_url.Append(page);
 
-            HttpResponseMessage hrm = await hc.GetAsync(url_base + urlImageFolder + "/" + manga + "/" + chapter + page_url + urlExtension);
-            if(hrm.StatusCode == HttpStatusCode.OK)
-            {
-                HttpContent st = hrm.Content;
-                Console.WriteLine(st.ReadAsStringAsync().Result);
+            //HttpResponseMessage hrm = await hc.GetAsync(url_base + urlImageFolder + "/" + manga + "/" + chapter + page_url + urlExtension);
+            //if(hrm.StatusCode == HttpStatusCode.OK)
+            //{
+            //    HttpContent st = hrm.Content;
+            //    Console.WriteLine(st.ReadAsStringAsync().Result);
 
-                string destFolder = savePath +"\\"+ (chapter - 1).ToString();
-                // c:\naruto\1.png
-                using(FileStream f = File.OpenWrite(destFolder+page+urlExtension))
-                {
-                  byte[] res = await st.ReadAsByteArrayAsync();
+            //    string destFolder = savePath +"\\"+ (chapter - 1).ToString();
+            //    // c:\naruto\1.png
+            //    using(FileStream f = File.OpenWrite(destFolder+page+urlExtension))
+            //    {
+            //      byte[] res = await st.ReadAsByteArrayAsync();
 
-                f.Write(res, 0, res.Length) // Write the file
-                };
+            //    f.Write(res, 0, res.Length) // Write the file
+            //    };
 
-                Console.WriteLine("Chapter {0} page {1}: Ok!", chapter, page);
-            }
-            */
+            //    Console.WriteLine("Chapter {0} page {1}: Ok!", chapter, page);
+            //}
         }
     }
 }
