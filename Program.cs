@@ -9,7 +9,7 @@ using System.Configuration;
 using System.Net;
 using System.Threading;
 
-namespace Crawler
+namespace MangaDownloader
 {
     class Program
     {
