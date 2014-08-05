@@ -22,7 +22,7 @@ namespace MangaDownloader
         static string urlExtension;
         static int firstChapter;
         static int lastChapter;
-        // Path where all the chapter will be stored.
+        // Path where all the chapters will be stored.
         static string savePath;
         static HttpClient hc;
 
