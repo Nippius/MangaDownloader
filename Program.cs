@@ -14,19 +14,22 @@ namespace Crawler
     class Program
     {
         // Maximum number of pages being downloaded
-        private static int maxConcurPageDown;  
-        private static int delayBetweenChapters;
-        private static string urlBase;
-        private static string urlImageFolder;
-        private static string manga;
-        private static string urlExtension;
-        private static int firstChapter;
-        private static int lastChapter;
+        static int maxConcurPageDown;
+        static int delayBetweenChapters;
+        static string urlBase;
+        static string urlImageFolder;
+        static string manga;
+        static string urlExtension;
+        static int firstChapter;
+        static int lastChapter;
         // Path where all the chapter will be stored.
-        private static string savePath; 
-        private static HttpClient hc;
+        static string savePath;
+        static HttpClient hc;
 
-        static void Main(string[] args)
+        /// <summary>
+        /// Initializes all the necessary variables by reading the values from App.config
+        /// </summary>
+        static void Init()
         {
             maxConcurPageDown = Convert.ToInt32(ConfigurationManager.AppSettings["maxConcurrentPageDownloads"]);
             delayBetweenChapters = Convert.ToInt32(ConfigurationManager.AppSettings["delayBetweenChapters"]);
@@ -38,7 +41,7 @@ namespace Crawler
             lastChapter = Convert.ToInt32(ConfigurationManager.AppSettings["endChapter"]);
 
             // Create folder if it dosen´t exist
-            savePath = ConfigurationManager.AppSettings["SavePath"]+manga;
+            savePath = ConfigurationManager.AppSettings["SavePath"] + manga;
             if (!Directory.Exists(savePath))
             {
                 Directory.CreateDirectory(savePath);
@@ -48,10 +51,15 @@ namespace Crawler
             // Ex: Chapter 687 is URL http://www.mangastream.to/naruto-chapter-688.html
             firstChapter++;
             lastChapter++;
+        }
+
+        static void Main(string[] args)
+        {
+            Init();
 
             hc = new HttpClient();
 
-            Download().Wait();  // Bloquear o main até termos acabado de sacar tudo.
+            Download().Wait();  // Block Main() unti
 
             Console.WriteLine("All downloads finished!");
             // Carregar em qualquer tecla para terminar.
@@ -95,7 +103,7 @@ namespace Crawler
                 // GetTotalChapterPagesAvailable()
 
                 // Create folder for current chapter
-                string destChapterFolder = savePath +"\\"+ (chapter - 1).ToString();
+                string destChapterFolder = savePath + "\\" + (chapter - 1).ToString();
                 if (!Directory.Exists(destChapterFolder))
                 {
                     Directory.CreateDirectory(destChapterFolder);
@@ -103,7 +111,7 @@ namespace Crawler
 
 
                 // Wait for each chapter to finish downloading
-                Console.Write("Processing chapter: "+(chapter-1)+" -- ");
+                Console.Write("Processing chapter: " + (chapter - 1) + " -- ");
                 await GetChapter(chapter);
                 Console.WriteLine("Ok!");
                 // This should NEVER be used! Must find a better solution.
@@ -157,10 +165,10 @@ namespace Crawler
             //Simular trabalho...
             return Task.Delay(delay).ContinueWith((x) =>
             {
-                 //Console.WriteLine(chapter + " - " + page +" Completed... OK! Delay was: "+delay);
+                //Console.WriteLine(chapter + " - " + page +" Completed... OK! Delay was: "+delay);
             });
 
-            
+
             //StringBuilder page_url = new StringBuilder();
             //page_url.Append("/");
             //if (page < 10) page_url.Append("0");
