@@ -1,0 +1,4 @@
+﻿TODO
+=====
+
+- Test if using the IProgress interface in order to report progress of chapter/page download is usefull.
