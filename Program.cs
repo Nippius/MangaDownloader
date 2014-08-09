@@ -127,7 +127,7 @@ namespace MangaDownloader
             // List of pages currently downloading.
             LinkedList<Task> pagesCurrentlyDownloading = new LinkedList<Task>();
 
-            for (int page = 1; page < totalPageCount; page++)
+            for (int page = 1; page <= totalPageCount; page++)
             {
                 pagesCurrentlyDownloading.AddFirst(GetPage(chapter, page));
 
