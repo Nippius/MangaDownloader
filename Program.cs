@@ -18,7 +18,7 @@ namespace MangaDownloader
         static int delayBetweenChapters;
         static string urlBase;
         static string urlImageFolder;
-        static string manga;
+        static string urlMangaName;
         static string urlExtension;
         static int firstChapter;
         static int lastChapter;
@@ -35,13 +35,13 @@ namespace MangaDownloader
             delayBetweenChapters = Convert.ToInt32(ConfigurationManager.AppSettings["delayBetweenChapters"]);
             urlBase = ConfigurationManager.AppSettings["urlBase"];
             urlImageFolder = ConfigurationManager.AppSettings["urlImageFolder"];
-            manga = ConfigurationManager.AppSettings["manga"];
+            urlMangaName = ConfigurationManager.AppSettings["urlMangaName"];
             urlExtension = ConfigurationManager.AppSettings["urlExtension"];
             firstChapter = Convert.ToInt32(ConfigurationManager.AppSettings["startChapter"]);
             lastChapter = Convert.ToInt32(ConfigurationManager.AppSettings["endChapter"]);
 
             // Create folder if it dosen´t exist
-            savePath = ConfigurationManager.AppSettings["SavePath"] + manga;
+            savePath = ConfigurationManager.AppSettings["SavePath"];
             if (!Directory.Exists(savePath))
             {
                 Directory.CreateDirectory(savePath);
@@ -111,9 +111,9 @@ namespace MangaDownloader
 
 
                 // Wait for each chapter to finish downloading
-                Console.Write("Processing chapter: " + (chapter - 1) + " -- ");
+                //Console.Write("Processing chapter: " + (chapter - 1) + " -- ");
                 await GetChapter(chapter);
-                Console.WriteLine("Ok!");
+                //Console.WriteLine("Ok!");
                 // This should NEVER be used! Must find a better solution.
                 System.Threading.Thread.Sleep(delayBetweenChapters);
             }
@@ -158,7 +158,8 @@ namespace MangaDownloader
         /// <returns>Returns a Task that will complete once the page is completely downloaded.</returns>
         private static Task GetPage(int chapter, int page)
         {
-
+            string fullImageUrl = BuildFullImageURL(chapter, page);
+            Console.WriteLine(fullImageUrl);
             // Delay entre 1 e 6 segundos
             int delay = ((System.DateTime.Now.Millisecond % 5) + 1) * 1000;
 
@@ -191,6 +192,11 @@ namespace MangaDownloader
 
             //    Console.WriteLine("Chapter {0} page {1}: Ok!", chapter, page);
             //}
+        }
+
+        private static string BuildFullImageURL(int chapter, int page)
+        {
+            return urlBase + urlImageFolder + urlMangaName + "/" + chapter + "/" + page + urlExtension;
         }
     }
 }
