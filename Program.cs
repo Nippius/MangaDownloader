@@ -156,18 +156,18 @@ namespace MangaDownloader
         /// <param name="chapter">The chapter number tha the page corresponds to.</param>
         /// <param name="page">The page number to download.</param>
         /// <returns>Returns a Task that will complete once the page is completely downloaded.</returns>
-        private static Task GetPage(int chapter, int page)
+        private static async Task GetPage(int chapter, int page)
         {
-            string fullImageUrl = BuildFullImageURL(chapter, page);
+            string fullImageUrl = await GetFullImageURL(chapter, page);
             Console.WriteLine(fullImageUrl);
             // Delay entre 1 e 6 segundos
             int delay = ((System.DateTime.Now.Millisecond % 5) + 1) * 1000;
 
             //Simular trabalho...
-            return Task.Delay(delay).ContinueWith((x) =>
-            {
-                //Console.WriteLine(chapter + " - " + page +" Completed... OK! Delay was: "+delay);
-            });
+            //return Task.Delay(delay).ContinueWith((x) =>
+            //{
+            //    //Console.WriteLine(chapter + " - " + page +" Completed... OK! Delay was: "+delay);
+            //});
 
 
             //StringBuilder page_url = new StringBuilder();
@@ -194,7 +194,20 @@ namespace MangaDownloader
             //}
         }
 
-        private static string BuildFullImageURL(int chapter, int page)
+        /// <summary>
+        /// This function will query the website in order to get the real link to the image.
+        /// </summary>
+        /// <param name="chapter">Chapter to search.</param>
+        /// <param name="page">Page to find.</param>
+        /// <returns></returns>
+        /// <remarks>
+        /// We need this because there is no API to know what the extension of the image is,
+        /// or if it is double image. The image url can have the following patterns:
+        /// XX.jpg
+        /// XX.png
+        /// XX-YY.png
+        /// </remarks>
+        private static async Task<string> GetFullImageURL(int chapter, int page)
         {
             return urlBase + urlImageFolder + urlMangaName + "/" + chapter + "/" + page + urlExtension;
         }
