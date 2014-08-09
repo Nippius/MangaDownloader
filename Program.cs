@@ -122,27 +122,25 @@ namespace MangaDownloader
         private static async Task GetChapter(int chapter)
         {
             // Get how many pages the current chapter has
-            await FetchTotalNumberOfPagesForCurrentChapter(chapter);
+            int totalPageCount = await FetchTotalNumberOfPagesForCurrentChapter(chapter);
 
             // List of pages currently downloading.
-            LinkedList<Task> pages = new LinkedList<Task>();
+            LinkedList<Task> pagesCurrentlyDownloading = new LinkedList<Task>();
 
-            for (int page = 1; page < 30; page++)
+            for (int page = 1; page < totalPageCount; page++)
             {
-                // Add next page to download.
-                pages.AddFirst(GetPage(chapter, page));
+                pagesCurrentlyDownloading.AddFirst(GetPage(chapter, page));
 
-                // Transfer no more than maxConcurPageDown pages at once.
-                if (pages.Count == maxConcurPageDown)
+                if (pagesCurrentlyDownloading.Count == maxConcurPageDown)
                 {
                     // Once we are at the limit, wait for at least one to finish
-                    await Task.WhenAny(pages.ToArray()).ContinueWith((x) =>
+                    await Task.WhenAny(pagesCurrentlyDownloading.ToArray()).ContinueWith((x) =>
                     {
                         // WhenAny() returns the instance of Task that ended so we can remove it from
                         // the queue of pages and add another one. NEEDS MORE TESTING
                         // in order to garantee that there is no concurrency problems. (does it
                         // need locks or a synchronizer?)
-                        pages.Remove(x);
+                        pagesCurrentlyDownloading.Remove(x);
                     });
                 }
             }
