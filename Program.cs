@@ -205,41 +205,38 @@ namespace MangaDownloader
         /// <returns>Returns a Task that will complete once the page is completely downloaded.</returns>
         private static async Task GetPage(int chapter, int page)
         {
+            string fullImageUrl;
             try
             {
-                string fullImageUrl = await FetchtFullImageURL(chapter, page);
+                fullImageUrl = await FetchtFullImageURL(chapter, page);
             }catch(FullImageURLNotFoundException)
             {
                 Console.WriteLine("Chapter {0} page {1} could not be retrived.", chapter, page);
                 return;
             }
             
-            //// Delay entre 1 e 6 segundos
-            int delay = ((System.DateTime.Now.Millisecond % 5) + 1) * 1000;
-
-            //Simular trabalho...
-            await Task.Delay(delay).ContinueWith((x) =>
+            HttpResponseMessage hrm = await hc.GetAsync(fullImageUrl);
+            if(hrm.StatusCode == HttpStatusCode.OK)
             {
-                Console.WriteLine(chapter + " - " + page + " Completed... OK! Delay was: " + delay);
-            });
+                HttpContent st = hrm.Content;
+                //Console.WriteLine(st.ReadAsStringAsync().Result);
+                StringBuilder destFile = new StringBuilder(savePath);
+                destFile.Append("\\");
+                destFile.Append((chapter - 1));
+                destFile.Append("\\");
+                destFile.Append(page);
+                destFile.Append(fullImageUrl.Substring(fullImageUrl.Length-4)); // File extension
 
-            //HttpResponseMessage hrm = await hc.GetAsync(url_base + urlImageFolder + "/" + manga + "/" + chapter + page_url + urlExtension);
-            //if(hrm.StatusCode == HttpStatusCode.OK)
-            //{
-            //    HttpContent st = hrm.Content;
-            //    Console.WriteLine(st.ReadAsStringAsync().Result);
+                // c:\naruto\1.png
+                using (FileStream f = File.OpenWrite(destFile.ToString()))
+                {
+                  byte[] res = await st.ReadAsByteArrayAsync();
 
-            //    string destFolder = savePath +"\\"+ (chapter - 1).ToString();
-            //    // c:\naruto\1.png
-            //    using(FileStream f = File.OpenWrite(destFolder+page+urlExtension))
-            //    {
-            //      byte[] res = await st.ReadAsByteArrayAsync();
+                  f.Write(res, 0, res.Length); // Write the file
+                };
 
-            //    f.Write(res, 0, res.Length) // Write the file
-            //    };
-
-            //    Console.WriteLine("Chapter {0} page {1}: Ok!", chapter, page);
-            //}
+                Console.WriteLine("Chapter {0} page {1}: Ok!", chapter, page);
+            }
         }
 
         /// <summary>
@@ -278,7 +275,7 @@ namespace MangaDownloader
                     {
                         if (attribute.Value.Equals("manga-page"))
                         {
-                            Console.WriteLine(link.Attributes["src"].Value);
+                            //Console.WriteLine(link.Attributes["src"].Value);
                             return link.Attributes["src"].Value;
                         }
                     }
