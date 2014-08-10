@@ -6,11 +6,15 @@ using System.Threading.Tasks;
 
 namespace MangaDownloader.Exceptions
 {
+    [Serializable]
     class TotalPageCountException : Exception
     {
-        public TotalPageCountException() : base("Couldn´t calculate how many pages the chater has.")
-        {
-            
-        }
+        public TotalPageCountException()
+            : base("TotalPageCountException: An unexpected error occured!")
+        { }
+
+        public TotalPageCountException(string message)
+            : base("TotalPageCountException: " + message)
+        { }
     }
 }

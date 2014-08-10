@@ -17,6 +17,7 @@ namespace MangaDownloader
     {
         // Maximum number of pages being downloaded
         static string urlBase;
+        // Unused for now..
         static int maxConcurPageDown;
         static int delayBetweenChapters;
         static int firstChapter;
@@ -24,6 +25,19 @@ namespace MangaDownloader
         // Path where all the chapters will be stored.
         static string savePath;
         static HttpClient hc;
+
+        /// <summary>
+        /// Program entry point.
+        /// </summary>
+        /// <param name="args">Unused</param>
+        static void Main()
+        {
+            Init();
+
+            hc = new HttpClient();
+
+            DownloadAsync().Wait();
+        }
 
         /// <summary>
         /// Initializes all the necessary variables by reading the values from App.config
@@ -36,80 +50,43 @@ namespace MangaDownloader
             firstChapter = Convert.ToInt32(ConfigurationManager.AppSettings["startChapter"]);
             lastChapter = Convert.ToInt32(ConfigurationManager.AppSettings["endChapter"]);
 
-            // Create folder if it dosen´t exist
             savePath = ConfigurationManager.AppSettings["SavePath"];
             if (!Directory.Exists(savePath))
             {
                 Directory.CreateDirectory(savePath);
             }
-
-            // Chapter URL's start at 1 so we need to add one to get the correct chapter
-            // Ex: Chapter 687 is URL http://www.mangastream.to/naruto-chapter-688.html
-            firstChapter++;
-            lastChapter++;
-        }
-
-        static void Main(string[] args)
-        {
-            Init();
-
-            hc = new HttpClient();
-
-            Download().ContinueWith((x) =>
-            {
-                Console.WriteLine("All done!");
-            });
-
-            // Carregar em qualquer tecla para terminar.
-            Console.ReadLine();
-
-            /*
-            // Testes
-            int chapter = 661;
-            int page = 1;
-
-            HttpResponseMessage hrm = hc.GetAsync(url_base+url_img_folder+chapter+"/02"+url_etx).Result;
-            HttpContent st = hrm.Content;
-            //Console.WriteLine(st.ReadAsStringAsync().Result);
- 
-            using(FileStream f = File.OpenWrite("/681/teste.png"))
-            {
-              byte[] res = await st.ReadAsByteArrayAsync();
-
-            f.Write(res, 0, res.Length)
-            };
-            */
-
-            // ISTO É UM BUG DESCOMUNAL! Estamos infinitamente a criar tasks para fazer download e todas elas vão começar a sacar capitulos desde o incio
-            // Exemplo:
-            //  t1 - Sacar todos os capitulos de 661 até ao 685
-            //  t2 - Sacar todos os capitulos de 661 até ao 685
-            // ...
-            //while(!Download().IsCompleted); 
         }
 
         /// <summary>
         /// Downloads all the chapters specified in App.config
         /// </summary>
         /// <returns>Returns a Task that will complete when all chapters are downloaded.</returns>
-        private async static Task Download()
+        static async Task DownloadAsync()
         {
+            // Chapters start at 1 so we need to add 1
+            Console.WriteLine("Downloading {0} chapter(s).", (lastChapter - firstChapter) + 1);
+
             for (int chapter = firstChapter; chapter <= lastChapter; chapter++)
             {
-                // Create folder for current chapter
-                string destChapterFolder = savePath + "\\" + (chapter - 1).ToString();
+                Console.Write("Chapter {0}: ", chapter);
+
+                // Create folder for current chapter if needed
+                string destChapterFolder = savePath + "\\" + Convert.ToString(chapter);
                 if (!Directory.Exists(destChapterFolder))
                 {
                     Directory.CreateDirectory(destChapterFolder);
                 }
 
+                await GetChapterAsync(chapter);
 
-                // Wait for each chapter to finish downloading
-                //Console.Write("Processing chapter: " + (chapter - 1) + " -- ");
-                await GetChapter(chapter);
-                //Console.WriteLine("Ok!");
-                // This should NEVER be used! Must find a better solution.
-                await Task.Delay(delayBetweenChapters);
+                Console.WriteLine("Complete!");
+
+                // No need to wait if it is the last chapter
+                if (chapter != lastChapter)
+                {
+                    // This should NEVER be used! Must find a better solution.
+                    Thread.Sleep(delayBetweenChapters);
+                }
             }
         }
 
@@ -118,31 +95,76 @@ namespace MangaDownloader
         /// </summary>
         /// <param name="chapter">The chapter number to download.</param>
         /// <returns>Returns a Task that will complete once the chapter is completely downloaded.</returns>
-        private static async Task GetChapter(int chapter)
+        static async Task GetChapterAsync(int chapter)
         {
-            // Get how many pages the current chapter has
-            int totalPageCount = await FetchTotalNumberOfPagesForCurrentChapter(chapter);
-
+            int totalPageCount;
+            try
+            {
+                totalPageCount = await FetchTotalNumberOfPagesForCurrentChapterAsync(chapter);
+            }
+            catch (TotalPageCountException tpce)
+            {
+                Console.WriteLine(tpce.Message);
+                Console.WriteLine("Unable to find how many pages chapter {0} has!", chapter);
+                return;
+            }
 
             // List of pages currently downloading.
             LinkedList<Task> pagesCurrentlyDownloading = new LinkedList<Task>();
 
             for (int page = 1; page <= totalPageCount; page++)
             {
-                pagesCurrentlyDownloading.AddFirst(GetPage(chapter, page));
+                pagesCurrentlyDownloading.AddFirst(GetPageAsync(chapter, page));
 
-                if (pagesCurrentlyDownloading.Count == maxConcurPageDown)
+                // Must find a way to throttle the number of downloaded pages
+                // in order to avoid overloading the server and getting our ip
+                // banned...
+            }
+
+            await Task.WhenAll(pagesCurrentlyDownloading.ToArray());
+        }
+
+        /// <summary>
+        /// Downloads asynchronously a single page from a chapter of the manga specified.
+        /// </summary>
+        /// <param name="chapter">The chapter number tha the page corresponds to.</param>
+        /// <param name="page">The page number to download.</param>
+        /// <returns>Returns a Task that will complete once the page is completely downloaded.</returns>
+        static async Task GetPageAsync(int chapter, int page)
+        {
+            string fullImageUrl;
+            try
+            {
+                fullImageUrl = await FetchtFullImageURLAsync(chapter, page);
+            }
+            catch (FullImageURLNotFoundException fiunfe)
+            {
+                Console.WriteLine(fiunfe.Message);
+                Console.WriteLine("Chapter {0} page {1} could not be retrived.", chapter, page);
+                return;
+            }
+
+            // Download the page
+            HttpResponseMessage hrm = await hc.GetAsync(fullImageUrl);
+            if (hrm.StatusCode == HttpStatusCode.OK)
+            {
+                HttpContent imageData = hrm.Content;
+
+                // Build the path to the file where to write the image data
+                StringBuilder destFile = new StringBuilder(savePath);
+                destFile.Append("\\");
+                destFile.Append(chapter);
+                destFile.Append("\\");
+                destFile.Append(page);
+                destFile.Append(fullImageUrl.Substring(fullImageUrl.Length - 4)); // File extension
+
+                // Save to file
+                using (FileStream f = File.OpenWrite(destFile.ToString()))
                 {
-                    // Once we are at the limit, wait for at least one to finish
-                    await Task.WhenAny(pagesCurrentlyDownloading.ToArray()).ContinueWith((x) =>
-                    {
-                        // WhenAny() returns the instance of Task that ended so we can remove it from
-                        // the queue of pages and add another one. NEEDS MORE TESTING
-                        // in order to garantee that there is no concurrency problems. (does it
-                        // need locks or a synchronizer?)
-                        pagesCurrentlyDownloading.Remove(x);
-                    });
-                }
+                    byte[] res = await imageData.ReadAsByteArrayAsync();
+
+                    f.Write(res, 0, res.Length);
+                };
             }
         }
 
@@ -152,24 +174,36 @@ namespace MangaDownloader
         /// </summary>
         /// <param name="chapter">Chapter number to query the total page count</param>
         /// <returns>Returns the total page count for the given chapter.</returns>
-        private static async Task<int> FetchTotalNumberOfPagesForCurrentChapter(int chapter)
+        static async Task<int> FetchTotalNumberOfPagesForCurrentChapterAsync(int chapter)
         {
+            if (chapter < 1)
+            {
+                throw new TotalPageCountException("Invalid chapter number!");
+            }
+
             // Note, all this urls are valid:
             // http://www.mangastream.to/naruto-chapter-663.html
             // http://www.mangastream.to/naruto-chapter-663-page-0.html
             // http://www.mangastream.to/naruto-chapter-663-page-1.html
             // All of them return the first page of the chapter.
             // For convenience we will use http://www.mangastream.to/naruto-chapter-{0}-page-0.html
-            // since that URL is already defined in App.config.
-            string url = String.Format(urlBase, chapter, 0);
+            // since that URL is already defined in App.config (urlBase).
+            // We also need to add 1 to the chapter number because chapters start
+            // at 1 and not at 0 (there is no chapter 0)
+            string url = String.Format(urlBase, chapter + 1, 0);
 
             HttpResponseMessage hrm = await hc.GetAsync(url);
             if (hrm.StatusCode != HttpStatusCode.OK)
-                throw new FullImageURLNotFoundException();
+            {
+                throw new TotalPageCountException("Unable to contact the server in order the retrieve the total page count!");
+            }
 
             HtmlDocument hdoc = new HtmlDocument();
             hdoc.Load(await hrm.Content.ReadAsStreamAsync());
 
+            // Parse the HTML tree to find the tag "select" in wich the value of the
+            // "name" attribute is "pages".
+            // Once found, return the value of the last "option" tag.
             if (hdoc.DocumentNode != null)
             {
                 foreach (HtmlNode link in hdoc.DocumentNode.SelectNodes("//select"))
@@ -179,64 +213,23 @@ namespace MangaDownloader
                     {
                         if (attribute.Value.Equals("pages"))
                         {
-                            int total = 0;
+                            int lastPage = 0;
                             // This is stupid. For now this is the only way i found to calculate how many 
                             // pages a given chapter has...
-                            foreach(HtmlNode childNode in link.ChildNodes)
+                            foreach (HtmlNode childNode in link.ChildNodes)
                             {
-                                if(childNode.Name.Equals("option"))
+                                if (childNode.Name.Equals("option"))
                                 {
-                                    total = Convert.ToInt32(childNode.Attributes["value"].Value);
+                                    lastPage = Convert.ToInt32(childNode.Attributes["value"].Value);
                                 }
                             }
-                            return total;
+                            return lastPage;
                         }
                     }
                 }
             }
-            throw new TotalPageCountException();
-        }
 
-        /// <summary>
-        /// Downloads asynchronously a single page from a chapter of the manga specified.
-        /// </summary>
-        /// <param name="chapter">The chapter number tha the page corresponds to.</param>
-        /// <param name="page">The page number to download.</param>
-        /// <returns>Returns a Task that will complete once the page is completely downloaded.</returns>
-        private static async Task GetPage(int chapter, int page)
-        {
-            string fullImageUrl;
-            try
-            {
-                fullImageUrl = await FetchtFullImageURL(chapter, page);
-            }catch(FullImageURLNotFoundException)
-            {
-                Console.WriteLine("Chapter {0} page {1} could not be retrived.", chapter, page);
-                return;
-            }
-            
-            HttpResponseMessage hrm = await hc.GetAsync(fullImageUrl);
-            if(hrm.StatusCode == HttpStatusCode.OK)
-            {
-                HttpContent st = hrm.Content;
-                //Console.WriteLine(st.ReadAsStringAsync().Result);
-                StringBuilder destFile = new StringBuilder(savePath);
-                destFile.Append("\\");
-                destFile.Append((chapter - 1));
-                destFile.Append("\\");
-                destFile.Append(page);
-                destFile.Append(fullImageUrl.Substring(fullImageUrl.Length-4)); // File extension
-
-                // c:\naruto\1.png
-                using (FileStream f = File.OpenWrite(destFile.ToString()))
-                {
-                  byte[] res = await st.ReadAsByteArrayAsync();
-
-                  f.Write(res, 0, res.Length); // Write the file
-                };
-
-                Console.WriteLine("Chapter {0} page {1}: Ok!", chapter, page);
-            }
+            throw new TotalPageCountException("Unable to parse the server response!");
         }
 
         /// <summary>
@@ -255,17 +248,31 @@ namespace MangaDownloader
         /// XX.png
         /// XX-YY.png
         /// </remarks>
-        private static async Task<string> FetchtFullImageURL(int chapter, int page)
+        static async Task<string> FetchtFullImageURLAsync(int chapter, int page)
         {
-            string url = String.Format(urlBase, chapter, page);
+            if(chapter < 1 || page < 1)
+            {
+                throw new FullImageURLNotFoundException("Invalid chapter or page number!");
+            }
+
+            // We need to add 1 to the chapter number because chapter URL's start
+            // at 1 and not at 0 (there is no chapter 0).
+            // This is necessarie because we download the chapter page in order
+            // to find the correct image URL
+            string url = String.Format(urlBase, chapter + 1, page);
 
             HttpResponseMessage hrm = await hc.GetAsync(url);
             if (hrm.StatusCode != HttpStatusCode.OK)
-                throw new FullImageURLNotFoundException();
+            {
+                throw new FullImageURLNotFoundException("Unable to contact the server in order the retrive the image URL!");
+            }
 
             HtmlDocument hdoc = new HtmlDocument();
             hdoc.Load(await hrm.Content.ReadAsStreamAsync());
 
+            // Parse the HTML tree to find the tag "img" in wich the value of the
+            // "class" attribute is "manga-page".
+            // If found, return the value of the "src" attribute.
             if (hdoc.DocumentNode != null)
             {
                 foreach (HtmlNode link in hdoc.DocumentNode.SelectNodes("//img"))
@@ -275,13 +282,13 @@ namespace MangaDownloader
                     {
                         if (attribute.Value.Equals("manga-page"))
                         {
-                            //Console.WriteLine(link.Attributes["src"].Value);
                             return link.Attributes["src"].Value;
                         }
                     }
                 }
             }
-            throw new FullImageURLNotFoundException();
+
+            throw new FullImageURLNotFoundException("Unable to parse the server response!");
         }
     }
 }
